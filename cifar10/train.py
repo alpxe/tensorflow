@@ -107,6 +107,10 @@ tf.summary.scalar("loss", loss)
 
 train = tf.train.AdamOptimizer(1e-5).minimize(loss)
 
+# 定义测试的准确率
+correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(label, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+tf.summary.scalar("accuracy", accuracy)
 
 ###
 def saved_model(sess):
@@ -125,17 +129,18 @@ def saved_model(sess):
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
-    # print(sess.run(loss,feed_dict={prob:0.5}))
     merge = tf.summary.merge_all()
     writer = tf.summary.FileWriter("graph/", graph=sess.graph)
 
     for i in range(10000):
+
         _, ls = sess.run([train, loss], feed_dict={prob: 0.5})
 
         if i % 50 == 0:
-            _, ls, m = sess.run([train, loss, merge], feed_dict={prob: 0.5})
+            _, ls,acc, m = sess.run([train, loss,accuracy, merge], feed_dict={prob: 0.5})
+
             writer.add_summary(m, i)
-            print("step:{0}  loss:{1}".format(i, ls))
+            print("step:{0}  loss:{1}  acc:{2}".format(i, ls,acc))
 
         if i % 1000 == 0:
             saved_model(sess)
