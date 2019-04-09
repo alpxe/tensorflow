@@ -5,3 +5,4 @@ __pycache__
 graph
 MNIST_data
 model_data
+cifar10_data
