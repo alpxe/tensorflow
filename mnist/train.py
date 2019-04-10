@@ -17,7 +17,7 @@ def __format(record):
 
 
 # 读取数据集文件
-dataset = tf.data.TFRecordDataset("MNIST_data/train.tfrecords")
+dataset = tf.data.TFRecordDataset("MNIST_data/test.tfrecords")
 dataset = dataset.repeat()  # 重复此数据集
 
 dataset = dataset.map(__format)  # 数据格式化
