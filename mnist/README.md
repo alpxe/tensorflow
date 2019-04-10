@@ -20,7 +20,7 @@ python train.py
 python mnist.py
 ```
 
-**测试模型**
+**测试模型准确率**
 ```
 python test.py
 ```
