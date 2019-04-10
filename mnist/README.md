@@ -19,3 +19,8 @@ python train.py
 ```
 python mnist.py
 ```
+
+**测试模型**
+```
+python test.py
+```
