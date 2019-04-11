@@ -38,6 +38,14 @@ def pool_max(x):  # 池化大小2*2，池化步长2，池化类型为最大池�
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
     pass
 
+# 测试用的数据集
+testnames = ["cifar10_data/cifar-10-batches-bin/test_batch.bin"]
+testdata = tf.data.FixedLengthRecordDataset(testnames, 1 + 32 * 32 * 3)
+testdata = testdata.repeat()  # 此数据集会循环
+testdata=testdata.map(_analyze)
+itertest=testdata.make_one_shot_iterator()
+testlabel,testimage=itertest.get_next()
+
 
 # 文件路径
 filenames = ["cifar10_data/cifar-10-batches-bin/data_batch_{0}.bin".format(i) for i in range(1, 6)]
@@ -107,10 +115,13 @@ tf.summary.scalar("loss", loss)
 
 train = tf.train.AdamOptimizer(1e-5).minimize(loss)
 
-# 定义测试的准确率
-correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(label, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-tf.summary.scalar("accuracy", accuracy)
+# 训练集上的准确率
+with tf.name_scope("accuracy"):
+    # 定义测试的准确率
+    correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(label, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    tf.summary.scalar("accuracy", accuracy)
+
 
 ###
 def saved_model(sess):
@@ -137,10 +148,10 @@ with tf.Session() as sess:
         _, ls = sess.run([train, loss], feed_dict={prob: 0.5})
 
         if i % 50 == 0:
-            _, ls,acc, m = sess.run([train, loss,accuracy, merge], feed_dict={prob: 0.5})
+            _, ls, acc, m = sess.run([train, loss, accuracy, merge], feed_dict={prob: 0.5})
 
             writer.add_summary(m, i)
-            print("step:{0}  loss:{1}  acc:{2}".format(i, ls,acc))
+            print("step:{0}  loss:{1}  acc:{2}".format(i, ls, acc))
 
         if i % 1000 == 0:
             saved_model(sess)
