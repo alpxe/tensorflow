@@ -119,6 +119,10 @@ train = tf.train.AdamOptimizer(1e-5).minimize(loss)
 with tf.name_scope("accuracy"):
     # 定义测试的准确率
     correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(label, 1))
+    print("----------------")
+    print(softmax.shape)
+    print(label.shape)
+    print("---------------")
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     tf.summary.scalar("accuracy", accuracy)
 
