@@ -17,7 +17,7 @@ def __format(record):
 
 
 # 读取数据集文件
-dataset = tf.data.TFRecordDataset("MNIST_data/test.tfrecords")
+dataset = tf.data.TFRecordDataset("tfrecords/test.tfrecords")
 dataset = dataset.repeat()  # 重复此数据集
 
 dataset = dataset.map(__format)  # 数据格式化
@@ -59,6 +59,7 @@ with tf.name_scope("conv1"):
     img=tf.cast(image,tf.float32,name="img")
     out_conv1 = conv(img, W_conv1)
 
+
     # 池化 #[-1,28,28,32] -> [-1,14,14,32]
     out_pool1 = pool(out_conv1)
 
@@ -94,7 +95,7 @@ with tf.name_scope("logit"):
     lgtW = delimit_W([1024, 10])
     lgtB = delimit_B([10])
 
-    logit = tf.add(tf.matmul(fly_drop, lgtW), lgtB, name="logit")
+    logit = tf                    .add(tf.matmul(fly_drop, lgtW), lgtB, name="logit")
     # result=tf.nn.softmax(logit,name="result")
     tf.summary.histogram("logit", logit)
 

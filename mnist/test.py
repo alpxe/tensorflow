@@ -1,9 +1,13 @@
-import tensorflow as tf
 
-with tf.Session() as sess:
-    a = tf.constant([[1,2], [2,3], [3,4], [4,5], [5,6]])
 
-    sum=tf.reduce_sum(a,1)
-    red=tf.reduce_mean(sum)
-    print(sess.run([sum,red]))
-    pass
+x_shape=[32,12,12,3]
+
+
+print(len(x_shape))
+
+
+print(x_shape[-1])
+reduce_dims = list(range(len(x_shape) - 1))
+
+
+print(reduce_dims)

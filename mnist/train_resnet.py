@@ -20,15 +20,21 @@ def pool_max_2x2(x):  # 池化大小2*2，池化步长2，池化类型为最大�
     pass
 
 
+def resnet(x, filter):
+    res = x
+
+
+    pass
+
+
 def __format(record):
     fats = tf.parse_single_example(record, features={
         "label": tf.FixedLenFeature([1], dtype=tf.int64),
         'image': tf.FixedLenFeature([28 * 28], dtype=tf.int64)
     })
 
-    label=tf.reshape(fats["label"],[])
+    label = tf.reshape(fats["label"], [])
     label = tf.one_hot(label, depth=10)
-
 
     image = tf.reshape(fats["image"] / 255, shape=[28, 28, 1])
     # image = tf.cast(image, tf.float32)
@@ -99,9 +105,8 @@ with tf.name_scope("accuracy"):
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
-
     for i in range(1000):
-        _,ls=sess.run([train,loss])
+        _, ls = sess.run([train, loss])
         print("loss:{0}".format(ls))
 
         if i % 50 == 0:
