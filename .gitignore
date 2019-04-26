@@ -6,3 +6,4 @@ graph
 MNIST_data
 model_data
 cifar10_data
+tfrecords

@@ -6,8 +6,11 @@ import gzip
 import struct
 import tensorflow as tf
 import numpy as np
+import os
 
 filepath = "MNIST_data/"
+outpath = "tfrecords/"
+
 TRAIN_IMAGES = 'train-images-idx3-ubyte.gz'
 TRAIN_LABELS = 'train-labels-idx1-ubyte.gz'
 TEST_IMAGES = 't10k-images-idx3-ubyte.gz'
@@ -15,11 +18,11 @@ TEST_LABELS = 't10k-labels-idx1-ubyte.gz'
 
 
 def create(IMAGES, LABELS, NAME):
-    with open(filepath + IMAGES, 'rb') as f:  # 打开文件
+    with open(os.path.join(filepath, IMAGES), 'rb') as f:  # 打开文件
         with gzip.GzipFile(fileobj=f) as bytestream:  # 解压缩
             img_buf = bytestream.read()  # 二进制内容
 
-    with open(filepath + LABELS, 'rb') as f:
+    with open(os.path.join(filepath, LABELS), 'rb') as f:
         with gzip.GzipFile(fileobj=f) as bytestream:
             label_buf = bytestream.read()
 
@@ -30,7 +33,11 @@ def create(IMAGES, LABELS, NAME):
     img_hd = struct.calcsize(">IIII")
     label_hd = struct.calcsize(">II")
 
-    writer = tf.python_io.TFRecordWriter(filepath + NAME)  # 定义生成的文件名为“ball_train.tfrecords”
+    if not os.path.exists(outpath):
+        os.makedirs(outpath)  # 生成文件夹
+
+    # 生成.tfrecords
+    writer = tf.python_io.TFRecordWriter(os.path.join(outpath, NAME))  # 生成的文件名
     for i in range(items):
         label, = struct.unpack_from(">B", label_buf, label_hd + i * 1)
 
@@ -49,6 +56,7 @@ def create(IMAGES, LABELS, NAME):
     writer.close()
     print('Successfully writer.')
     pass
+
 
 # 创建训练集
 create(TRAIN_IMAGES, TRAIN_LABELS, "train.tfrecords")
