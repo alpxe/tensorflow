@@ -23,8 +23,10 @@ def maybe_download(file):
     pass
 
 
+
+
 dest_directory = "MNIST_DATA/"
-DEFAULT_SOURCE_URL = "https://storage.googleapis.com/cvdf-datasets/mnist/"
+DEFAULT_SOURCE_URL = "http://yann.lecun.com/exdb/mnist/" #mnist官方地址
 
 TRAIN_IMAGES = 'train-images-idx3-ubyte.gz'
 TRAIN_LABELS = 'train-labels-idx1-ubyte.gz'
