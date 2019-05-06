@@ -21,8 +21,11 @@ data = data.batch(2)
 iterator = data.make_one_shot_iterator()
 label, image = iterator.get_next()
 
+
+
+
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
-    
+
     pass
