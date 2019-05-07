@@ -10,6 +10,8 @@ def _resolve(buf):
     })
 
     label = tf.reshape(fats["label"], shape=[])
+    label = tf.cast(tf.one_hot(label, 10), tf.float32)
+
     image = tf.cast(tf.reshape(fats["image"] / 0xFF, shape=[28, 28, 1]), tf.float32)
 
     return label, image
@@ -150,33 +152,68 @@ data = data.batch(10)
 iterator = data.make_one_shot_iterator()
 label, image = iterator.get_next()
 
+# 残差神经网络
+with tf.variable_scope("resnet"):
+    print("net    -- shape -- :")
+
+    net = conv2d(image, 32, 3, 1, scope="conv1")  # [10,28,28,1] -> [10,28,28,32]
+    net = tf.nn.relu(batch_norm(net, scope="bn1"))
+    net = max_pool(net, 2, 2, "maxpool1")  # ->[10,14,14,32]
+    print(net.get_shape())
+
+    net = _block(net, 256, 3, 1, scope="block_2")  # [?,14,14,256]
+    print(net.get_shape())
+
+    net = _block(net, 512, 4, scope="block3")  # [?,7,7,512]
+    print(net.get_shape())
+
+    net = _block(net, 1024, 6, scope="block4")  # [?,4,4,1024]
+    print(net.get_shape())
+
+    net = _block(net, 2048, 3, scope="block5")  # [?,2,2,2048]
+    print(net.get_shape())
+
+    net = avg_pool(net, 2, scope="avgpool5")  # [?,1,1,2048]
+    print(net.get_shape())
+
+    net = tf.squeeze(net, [1, 2], name="SpatialSqueeze")  # -> [batch, 2048]
+    print(net.get_shape())
+
+    print(" --- --- ---\n")
+
+with tf.variable_scope("logit"):
+    align = net.get_shape()[-1]
+
+    weight = tf.get_variable("weight", shape=[align, 10], dtype=tf.float32,
+                             initializer=tf.contrib.layers.xavier_initializer())
+    bias = tf.get_variable("bias", shape=[10], dtype=tf.float32, initializer=tf.zeros_initializer())
+
+    logit = tf.nn.xw_plus_b(net, weight, bias)
+    softmax = tf.clip_by_value(tf.nn.softmax(logit), 1e-10, 1.0)  # 值保护不会出现0和大于1
+
+    loss = tf.reduce_mean(-tf.reduce_sum(label * (tf.log(softmax) / tf.log(2.)), 1))
+    train = tf.train.AdamOptimizer(1e-4).minimize(loss)
+
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
-    with tf.variable_scope("resnet"):
-        net = conv2d(image, 32, 3, 1, scope="conv1")  # [10,28,28,1] -> [10,28,28,32]
-        net = tf.nn.relu(batch_norm(net, scope="bn1"))
-        net = max_pool(net, 2, 2, "maxpool1")  # ->[10,14,14,32]
-        print(net.get_shape())
+    print("depth learning 测试：")
 
-        net = _block(net, 256, 3, 1, scope="block_2")  # [?,14,14,256]
-        print(net.get_shape())
+    _, ls = sess.run([train, loss])
+    print("loss损失值:%s" % ls)
 
-        net = _block(net, 512, 4, scope="block3")  # [?,7,7,512]
-        print(net.get_shape())
+    _, ls = sess.run([train, loss])
+    print("loss损失值:%s" % ls)
 
-        net = _block(net, 1024, 6, scope="block4")  # [?,4,4,1024]
-        print(net.get_shape())
+    _, ls = sess.run([train, loss])
+    print("loss损失值:%s" % ls)
 
-        net = _block(net, 2048, 3, scope="block5")  # [?,2,2,2048]
-        print(net.get_shape())
+    _, ls = sess.run([train, loss])
+    print("loss损失值:%s" % ls)
 
-        net = avg_pool(net, 2, scope="avgpool5")  # [?,1,1,2048]
-        print(net.get_shape())
+    _, ls = sess.run([train, loss])
+    print("loss损失值:%s" % ls)
 
-        net = tf.squeeze(net, [1, 2], name="SpatialSqueeze")  # -> [batch, 2048]
-        print(net.get_shape())
-
-        
-
+    _, ls = sess.run([train, loss])
+    print("loss损失值:%s" % ls)
     pass

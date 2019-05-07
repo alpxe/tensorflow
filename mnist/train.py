@@ -27,6 +27,7 @@ dataset = dataset.batch(100)  # 批次量 每次输出的个数
 iterator = dataset.make_one_shot_iterator()
 label, image = iterator.get_next()  # 获取
 
+
 def delimit_W(shape):
     initial = tf.truncated_normal(shape, stddev=1e-5)
     return tf.Variable(initial_value=initial)
@@ -56,9 +57,8 @@ with tf.name_scope("conv1"):
     W_conv1 = delimit_W([5, 5, 1, 32])
 
     # 卷积   shepe=（将image[-1,28,28,1] 通过[3,3,1,32] ->[-1,28,28,32]）
-    img=tf.cast(image,tf.float32,name="img")
+    img = tf.cast(image, tf.float32, name="img")
     out_conv1 = conv(img, W_conv1)
-
 
     # 池化 #[-1,28,28,32] -> [-1,14,14,32]
     out_pool1 = pool(out_conv1)
@@ -95,7 +95,7 @@ with tf.name_scope("logit"):
     lgtW = delimit_W([1024, 10])
     lgtB = delimit_B([10])
 
-    logit = tf                    .add(tf.matmul(fly_drop, lgtW), lgtB, name="logit")
+    logit = tf.add(tf.matmul(fly_drop, lgtW), lgtB, name="logit")
     # result=tf.nn.softmax(logit,name="result")
     tf.summary.histogram("logit", logit)
 
