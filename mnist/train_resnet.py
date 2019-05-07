@@ -147,10 +147,13 @@ def _block(x, out, n, init_stride=2, scope="block"):
 data = tf.data.TFRecordDataset("tfrecords/train.tfrecords")
 data = data.repeat()
 data = data.map(_resolve)
-data = data.batch(10)
+data = data.batch(5)
 
 iterator = data.make_one_shot_iterator()
 label, image = iterator.get_next()
+
+with tf.variable_scope("input"):
+    image = tf.cast(image, tf.float32, name="image")
 
 # 残差神经网络
 with tf.variable_scope("resnet"):
@@ -159,21 +162,22 @@ with tf.variable_scope("resnet"):
     net = conv2d(image, 32, 3, 1, scope="conv1")  # [10,28,28,1] -> [10,28,28,32]
     net = tf.nn.relu(batch_norm(net, scope="bn1"))
     net = max_pool(net, 2, 2, "maxpool1")  # ->[10,14,14,32]
-    print(net.get_shape())
+    tf.summary.histogram("resnet/conv1", net)
 
     net = _block(net, 256, 3, 1, scope="block_2")  # [?,14,14,256]
-    print(net.get_shape())
+    tf.summary.histogram("resnet/conv2", net)
 
-    net = _block(net, 512, 4, scope="block3")  # [?,7,7,512]
-    print(net.get_shape())
+    net = _block(net, 512, 4, 1, scope="block3")  # [?,14,14,512]
+    tf.summary.histogram("resnet/conv3", net)
 
-    net = _block(net, 1024, 6, scope="block4")  # [?,4,4,1024]
+    net = _block(net, 1024, 3, scope="block4")  # [?,7,7,1024]
     print(net.get_shape())
+    tf.summary.histogram("resnet/conv4", net)
 
-    net = _block(net, 2048, 3, scope="block5")  # [?,2,2,2048]
-    print(net.get_shape())
+    # net = _block(net, 2048, 3, scope="block5")  # [?,2,2,2048]
+    # tf.summary.histogram("resnet/conv5", net)
 
-    net = avg_pool(net, 2, scope="avgpool5")  # [?,1,1,2048]
+    net = avg_pool(net, 7, scope="avgpool5")  # [?,1,1,1024]
     print(net.get_shape())
 
     net = tf.squeeze(net, [1, 2], name="SpatialSqueeze")  # -> [batch, 2048]
@@ -189,31 +193,34 @@ with tf.variable_scope("logit"):
     bias = tf.get_variable("bias", shape=[10], dtype=tf.float32, initializer=tf.zeros_initializer())
 
     logit = tf.nn.xw_plus_b(net, weight, bias)
-    softmax = tf.clip_by_value(tf.nn.softmax(logit), 1e-10, 1.0)  # 值保护不会出现0和大于1
+    softmax = tf.clip_by_value(tf.nn.softmax(logit), 1e-10, 1.0, name="softmax")  # 值保护不会出现0和大于1
 
     loss = tf.reduce_mean(-tf.reduce_sum(label * (tf.log(softmax) / tf.log(2.)), 1))
-    train = tf.train.AdamOptimizer(1e-4).minimize(loss)
+    tf.summary.scalar('loss', loss)  # 与tensorboard 有关
+
+    train = tf.train.AdamOptimizer(0.01).minimize(loss)
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
-    print("depth learning 测试：")
+    merge = tf.summary.merge_all()  # tensorboard
+    writer = tf.summary.FileWriter("graph/", graph=sess.graph)  # 写入日志log
 
-    _, ls = sess.run([train, loss])
-    print("loss损失值:%s" % ls)
+    for i in range(500 + 1):
+        sess.run([train, loss])
 
-    _, ls = sess.run([train, loss])
-    print("loss损失值:%s" % ls)
+        if i % 10 == 0:
+            _, ls, mrg, sx = sess.run([train, loss, merge, softmax])
+            writer.add_summary(mrg, i)
 
-    _, ls = sess.run([train, loss])
-    print("loss损失值:%s" % ls)
+            print("loss损失值:%s" % ls)
+            pass
+        pass
 
-    _, ls = sess.run([train, loss])
-    print("loss损失值:%s" % ls)
+    writer.close()
 
-    _, ls = sess.run([train, loss])
-    print("loss损失值:%s" % ls)
-
-    _, ls = sess.run([train, loss])
-    print("loss损失值:%s" % ls)
+    # 训练完毕 保存模型文件
+    builder = tf.saved_model.builder.SavedModelBuilder("model_data/")
+    builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.TRAINING])
+    builder.save()
     pass
