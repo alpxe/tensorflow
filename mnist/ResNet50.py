@@ -109,6 +109,16 @@ class ResNet50(object):
             self.predictions = tf.nn.softmax(self.logits)
 
     def _block(self, x, n_out, n, init_stride=2, is_training=True, scope="block"):
+        """
+
+        :param x: 输入
+        :param n_out: 输出的维度
+        :param n: 3次
+        :param init_stride: 滑动步长
+        :param is_training:
+        :param scope:
+        :return:
+        """
         with tf.variable_scope(scope):
             h_out = n_out // 4
             out = self._bottleneck(x, h_out, n_out, stride=init_stride,

@@ -1,13 +1,14 @@
+print(65.6+262.3+16.4+360)
 
 
-x_shape=[32,12,12,3]
+print(15700-704.3)
 
 
-print(len(x_shape))
+print(14995.7-416.2)
 
 
-print(x_shape[-1])
-reduce_dims = list(range(len(x_shape) - 1))
 
 
-print(reduce_dims)
+
+
+print(704+416)

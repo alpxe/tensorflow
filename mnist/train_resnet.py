@@ -1,4 +1,6 @@
 import tensorflow as tf
+from tensorflow.python.training import moving_averages
+import numpy as np
 
 
 def _resolve(buf):
@@ -8,24 +10,172 @@ def _resolve(buf):
     })
 
     label = tf.reshape(fats["label"], shape=[])
-    image = tf.reshape(fats["image"] / 0xFF, shape=[28, 28, 1])
+    image = tf.cast(tf.reshape(fats["image"] / 0xFF, shape=[28, 28, 1]), tf.float32)
 
     return label, image
+
+
+# batch norm layer
+def batch_norm(x, decay=0.999, epsilon=1e-03, is_training=True,
+               scope="scope"):
+    x_shape = x.get_shape()
+    num_inputs = x_shape[-1]
+    reduce_dims = list(range(len(x_shape) - 1))
+    with tf.variable_scope(scope):
+        beta = tf.get_variable("bate", shape=[num_inputs, ], initializer=tf.zeros_initializer())
+        gamma = tf.get_variable("gamma", shape=[num_inputs, ], initializer=tf.zeros_initializer())
+
+        moving_mean = tf.get_variable("moving_mean", shape=[num_inputs, ], initializer=tf.zeros_initializer(),
+                                      trainable=False)
+        moving_variance = tf.get_variable("moving_variance", shape=[num_inputs, ], initializer=tf.zeros_initializer(),
+                                          trainable=False)
+
+    if is_training:
+        mean, variance = tf.nn.moments(x, axes=reduce_dims)
+        update_move_mean = moving_averages.assign_moving_average(moving_mean,
+                                                                 mean, decay=decay)
+        update_move_variance = moving_averages.assign_moving_average(moving_variance,
+                                                                     variance, decay=decay)
+        tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_move_mean)
+        tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_move_variance)
+    else:
+        mean, variance = moving_mean, moving_variance
+
+
+def conv2d(x, out, kernel_size, stride, scope):
+    """
+    卷积
+    :param x: 输入
+    :param out: 输出的维度
+    :param kernel_size: 卷积核尺寸
+    :param stride: 卷积核滑动
+    :param scope:
+    :return:
+    """
+
+    align = x.get_shape()[-1]  # 获取输入最后的维度 用于维度对齐
+    with tf.variable_scope(scope):
+        # 创建卷积核 [ 尺寸 , 尺寸 , 与输入最后的维度一致 , 输出的维度 ]
+        kernel = tf.get_variable("kernel",
+                                 shape=[kernel_size, kernel_size, align, out],
+                                 dtype=tf.float32,
+                                 initializer=tf.contrib.layers.xavier_initializer_conv2d())
+
+        # 卷积方法
+        return tf.nn.conv2d(x, kernel, strides=[1, stride, stride, 1], padding="SAME")
+    pass
+
+
+def max_pool(x, pool_size, stride, scope):
+    with tf.variable_scope(scope):
+        return tf.nn.max_pool(x, [1, pool_size, pool_size, 1],
+                              [1, stride, stride, 1], padding="SAME")
+
+
+def avg_pool(x, pool_size, scope):
+    with tf.variable_scope(scope):
+        return tf.nn.avg_pool(x, [1, pool_size, pool_size, 1],
+                              strides=[1, pool_size, pool_size, 1], padding="VALID")
+
+
+def _bottleneck(x, d, out, stride=None, scope="bottleneck"):
+    """
+    三层瓶颈结构为1X1，3X3和1X1卷积层
+    其中两个1X1卷积用来减少或增加维度
+    3X3卷积可以看作一个更小的输入输出维度的瓶颈
+    :param x: 输入
+    :param d: 瓶颈值 教程上是out整除4的值
+    :param out: 输出的维度值
+    :return:
+    """
+
+    align = x.get_shape()[-1]  # 获取输入最后的维度 用于维度对齐
+
+    if stride is None:
+        stride = 1 if align == out else 2
+
+    with tf.variable_scope(scope):
+        # 1x1卷积核 如果stride默认且输入与输出的维度一致，则步长为2 卷积后的size/2
+        h = conv2d(x, d, 1, stride=stride, scope="conv_1")  # [batch,size,size,align]->[batch,size,size,d]
+        h = batch_norm(h, scope="bn_1")
+        h = tf.nn.relu(h)
+
+        # 3x3卷积核 [batch,size,size,d]->[batch,size,size,d]
+        h = conv2d(h, d, 3, stride=1, scope="conv_2")
+        h = batch_norm(h, scope="bn_2")
+        h = tf.nn.relu(h)
+
+        # 1x1卷积核 [batch,size,size,d]->[batch,size,size,out]
+        h = conv2d(h, out, 1, stride=1, scope="conv_3")
+        h = batch_norm(h, scope="bn_3")
+
+        if align != out:  # 维度不同
+            shortcut = conv2d(x, out, 1, stride=stride, scope="conv_4")
+            shortcut = batch_norm(shortcut, scope="bn_4")
+        else:
+            shortcut = x
+
+        return tf.nn.relu(h + shortcut)
+    pass
+
+
+def _block(x, out, n, init_stride=2, scope="block"):
+    """
+    残差
+    :param x: 输入
+    :param out: 输出的维度
+    :param n: 迭代次数
+    :param init_stride: 初始步长值
+    :param scope:
+    :return:
+    """
+
+    with tf.variable_scope(scope):
+        bok = out // 4  # 瓶颈值
+        net = _bottleneck(x, bok, out, stride=init_stride, scope="bottlencek1")
+
+        for i in range(1, n):
+            net = _bottleneck(net, bok, out, scope=("bottlencek%s" % (i + 1)))
+
+        return net
+    pass
 
 
 data = tf.data.TFRecordDataset("tfrecords/train.tfrecords")
 data = data.repeat()
 data = data.map(_resolve)
-data = data.batch(2)
+data = data.batch(10)
 
 iterator = data.make_one_shot_iterator()
 label, image = iterator.get_next()
 
-
-
-
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
+    with tf.variable_scope("resnet"):
+        net = conv2d(image, 32, 3, 1, scope="conv1")  # [10,28,28,1] -> [10,28,28,32]
+        net = tf.nn.relu(batch_norm(net, scope="bn1"))
+        net = max_pool(net, 2, 2, "maxpool1")  # ->[10,14,14,32]
+        print(net.get_shape())
+
+        net = _block(net, 256, 3, 1, scope="block_2")  # [?,14,14,256]
+        print(net.get_shape())
+
+        net = _block(net, 512, 4, scope="block3")  # [?,7,7,512]
+        print(net.get_shape())
+
+        net = _block(net, 1024, 6, scope="block4")  # [?,4,4,1024]
+        print(net.get_shape())
+
+        net = _block(net, 2048, 3, scope="block5")  # [?,2,2,2048]
+        print(net.get_shape())
+
+        net = avg_pool(net, 2, scope="avgpool5")  # [?,1,1,2048]
+        print(net.get_shape())
+
+        net = tf.squeeze(net, [1, 2], name="SpatialSqueeze")  # -> [batch, 2048]
+        print(net.get_shape())
+
+        
 
     pass
