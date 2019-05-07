@@ -40,6 +40,7 @@ def batch_norm(x, decay=0.999, epsilon=1e-03, is_training=True,
         tf.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_move_variance)
     else:
         mean, variance = moving_mean, moving_variance
+    return tf.nn.batch_normalization(x, mean, variance, beta, gamma, epsilon)
 
 
 def conv2d(x, out, kernel_size, stride, scope):
